@@ -1,0 +1,51 @@
+services:
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - edge
+
+  # Panel de Traefik (opcional). Descomenta si lo quieres, pero entonces
+  # protege /dashboard con el mismo tipo de basicauth que se explica en
+  # el README para pgAdmin — nunca lo dejes abierto en :8080 sin más.
+  # traefik:
+  #   command:
+  #     - --api.dashboard=true
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      # Solo localhost del servidor: nunca queda expuesto a Internet.
+      # Se accede vía túnel SSH (ver README).
+      - "127.0.0.1:5050:80"
+    networks:
+      - edge
+
+volumes:
+  pgadmin-data:
+
+networks:
+  edge:
+    external: true
