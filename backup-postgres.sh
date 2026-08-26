@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# backup-postgres.sh — punto de partida, aún sin cron configurado.
+# backup-postgres.sh — vuelca CADA base de datos de cada contenedor
+# marcado con la label "platform.backup=true".
 #
-# Vuelca la BD de cada contenedor Postgres que lleve la label
-# "platform.backup=true" en su docker-compose.yml (añádela al servicio
-# "db" de cada cliente cuando quieras que entre en el backup).
+# Requiere que POSTGRES_SUPERUSER esté disponible en el entorno donde
+# corre este script (o expórtalo antes: export $(grep -v '^#' .env | xargs)).
 #
 # Uso manual:      ./backup-postgres.sh
-# Uso con cron:     0 3 * * *  /ruta/a/platform-infra/backups/backup-postgres.sh
+# Uso con cron:     0 3 * * *  /ruta/a/platform-infra/backup-postgres.sh
 #
 set -euo pipefail
 
@@ -23,9 +23,16 @@ if [ -z "$CONTAINERS" ]; then
 fi
 
 for container in $CONTAINERS; do
-  echo "Volcando ${container}..."
-  docker exec "$container" sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
-    > "${BACKUP_DIR}/${container}_${DATE}.sql"
+  # Postgres compartido: puede haber varias bases (una por cliente),
+  # así que las volcamos una a una en vez de asumir una sola.
+  DATABASES="$(docker exec "$container" psql -U "$POSTGRES_SUPERUSER" -tAc \
+    "SELECT datname FROM pg_database WHERE datistemplate = false AND datname <> 'postgres';")"
+
+  for db in $DATABASES; do
+    echo "Volcando ${container}/${db}..."
+    docker exec "$container" pg_dump -U "$POSTGRES_SUPERUSER" "$db" \
+      > "${BACKUP_DIR}/${container}_${db}_${DATE}.sql"
+  done
 done
 
 echo "Backups guardados en ${BACKUP_DIR}"

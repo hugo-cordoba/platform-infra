@@ -23,12 +23,13 @@ services:
 
   db:
     image: postgres:16-alpine
-    container_name: pg-shared        # nombre estable: es el host que usarán TODOS los clientes
+    container_name: pg-shared
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_SUPERUSER}
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
-      # sin POSTGRES_DB: no queremos una BD "por defecto" compartida
+    labels:
+      - platform.backup=true
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -38,7 +39,6 @@ services:
       retries: 5
     networks:
       - data
-    # SIN "ports:" — nunca expuesto, ni al host ni a Internet
 
   pgadmin:
     image: dpage/pgadmin4
