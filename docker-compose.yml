@@ -21,12 +21,24 @@ services:
     networks:
       - edge
 
-  # Panel de Traefik (opcional). Descomenta si lo quieres, pero entonces
-  # protege /dashboard con el mismo tipo de basicauth que se explica en
-  # el README para pgAdmin — nunca lo dejes abierto en :8080 sin más.
-  # traefik:
-  #   command:
-  #     - --api.dashboard=true
+  db:
+    image: postgres:16-alpine
+    container_name: pg-shared        # nombre estable: es el host que usarán TODOS los clientes
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      # sin POSTGRES_DB: no queremos una BD "por defecto" compartida
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - data
+    # SIN "ports:" — nunca expuesto, ni al host ni a Internet
 
   pgadmin:
     image: dpage/pgadmin4
@@ -37,15 +49,16 @@ services:
     volumes:
       - pgadmin-data:/var/lib/pgadmin
     ports:
-      # Solo localhost del servidor: nunca queda expuesto a Internet.
-      # Se accede vía túnel SSH (ver README).
-      - "127.0.0.1:5050:80"
+      - "127.0.0.1:5050:80"   # solo por túnel SSH
     networks:
-      - edge
+      - data
 
 volumes:
+  postgres_data:
   pgadmin-data:
 
 networks:
   edge:
+    external: true
+  data:
     external: true
