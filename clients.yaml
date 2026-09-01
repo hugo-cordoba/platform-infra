@@ -1,0 +1,14 @@
+# Registro de clientes activos en este servidor.
+#
+# new-client.sh añade una entrada aqui automaticamente en cada alta.
+# remove-client.sh NO borra la entrada sola (hazlo a mano tras
+# confirmar que la baja ha ido bien).
+#
+# Formato de cada entrada:
+#
+# - slug: cliente-demo
+#   domain: cliente-demo.local
+#   db_name: cliente_demo_db
+#   path: /srv/clients/cliente-demo
+#   created_at: 2026-09-01T10:00:00Z
+#   status: provisioned   # provisioned | live | suspended
